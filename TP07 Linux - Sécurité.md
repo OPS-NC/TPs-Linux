@@ -320,7 +320,7 @@ exit
 vagrant ssh box01
 cd /var/www/nextcloud
 
-OC_PASS="support123" sudo -E -u www-data php occ user:add --password-from-env support
+NC_PASS="support123" sudo -E -u www-data php occ user:add --password-from-env support
 ```
 
 **Vérifier** :
@@ -338,7 +338,7 @@ sudo -u www-data php occ user:list
 
 **Désactiver temporairement la protection anti-brute-force native de Nextcloud** :
 
-> Nextcloud intègre un mécanisme qui ralentit progressivement les tentatives depuis une même IP. Nous le désactivons pour que la démonstration soit visible — fail2ban remplacera ce rôle avec une approche plus robuste (ban au niveau firewall).
+> **Pourquoi c'est indispensable pour la démo** : depuis Nextcloud 26, la protection brute force s'applique aussi aux endpoints WebDAV (correctif de la CVE [GHSA-mr7q-xf62-fw54](https://github.com/nextcloud/security-advisories/security/advisories/GHSA-mr7q-xf62-fw54)). Avec cette protection active, Nextcloud ajoute jusqu'à 25 secondes de délai par tentative et retourne des erreurs `429 Too Many Requests` après 10 échecs en 30 minutes. Hydra devient alors inutilisable en pratique. En désactivant temporairement cette protection, nous pouvons démontrer l'attaque — fail2ban prendra ensuite le relais avec une protection au niveau firewall, plus difficile à contourner car elle coupe la connexion TCP avant même que Nextcloud ne réponde.
 
 ```bash
 sudo -u www-data php occ config:system:set auth.bruteforce.protection.enabled \
@@ -419,7 +419,7 @@ mysql -u dbadmin -ppassword123 -h 192.168.56.20 nextcloud \
 
 ### 4.3 Brute force sur Nextcloud (WebDAV via hydra)
 
-Nextcloud expose une API WebDAV sur `/remote.php/dav/`. Cette interface utilise l'**authentification HTTP Basic** — directement ciblable par hydra, sans CSRF ni JavaScript requis.
+Nextcloud expose une API WebDAV sur `/remote.php/dav/`. Cette interface utilise l'**authentification HTTP Basic** — directement ciblable par hydra, sans CSRF ni JavaScript. La protection brute force native ayant été désactivée à l'étape 3.2, Nextcloud 33 ne throttle pas les tentatives et hydra reçoit immédiatement un `401` par essai échoué.
 
 ```bash
 hydra -l support -P /tmp/passwords.txt 192.168.56.10 \

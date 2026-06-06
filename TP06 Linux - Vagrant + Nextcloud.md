@@ -1,7 +1,7 @@
 # TP06 Linux - Vagrant + Nextcloud
 
 **Niveau** : Intermédiaire  
-**Prérequis** : Ubuntu 26.04 Desktop, VirtualBox et Vagrant installés, connexion Internet, au moins **6 Go de RAM disponible**, TP01 à TP03 maîtrisés  
+**Prérequis** : Ubuntu 26.04 Desktop, connexion Internet, au moins **6 Go de RAM disponible** et **20 Go d'espace disque libre**, TP01 à TP03 maîtrisés  
 **Convention du TP** : le dossier personnel (`HOME`) de l'apprenant est `/home/PRENOM`. Remplacez `PRENOM` par votre prénom dans les chemins absolus.
 
 ---
@@ -41,6 +41,161 @@ Machine hôte (Ubuntu 26.04 Desktop)
 
 **Pourquoi MariaDB ?**  
 Nextcloud recommande officiellement MariaDB comme base de données principale pour ses performances sur les requêtes de métadonnées de fichiers et sa gestion des jeux de caractères `utf8mb4`.
+
+---
+
+## 🔧 Partie 0 : Installer VirtualBox et Vagrant
+
+> Cette partie est à réaliser **une seule fois** sur la machine hôte Ubuntu 26.04 Desktop. Si VirtualBox et Vagrant sont déjà installés et fonctionnels, passez directement à la Partie 1.
+
+---
+
+### 0.1 Vérifier les prérequis système
+
+```bash
+# RAM disponible (minimum 6 Go recommandés)
+free -h
+
+# Espace disque disponible (minimum 20 Go recommandés)
+df -h $HOME
+
+# Architecture (doit être amd64)
+dpkg --print-architecture
+```
+
+---
+
+### 0.2 Installer VirtualBox
+
+Ubuntu 26.04 (Resolute Raccoon) distribue VirtualBox 7.2 via le dépôt **multiverse** officiel d'Ubuntu. Le dépôt Oracle ne propose pas encore de paquets natifs pour Ubuntu 26.04 à la date de ce TP.
+
+> **Source** : [linuxconfig.org — How to Install VirtualBox on Ubuntu 26.04](https://linuxconfig.org/how-to-install-virtualbox-on-ubuntu-26-04), [linuxcapable.com — Install VirtualBox on Ubuntu](https://linuxcapable.com/install-virtualbox-on-ubuntu-linux/)
+
+**Activer le dépôt multiverse et installer VirtualBox** :
+
+```bash
+sudo add-apt-repository multiverse
+sudo apt update
+sudo apt install -y virtualbox virtualbox-dkms linux-headers-$(uname -r)
+```
+
+| Paquet | Rôle |
+|---|---|
+| `virtualbox` | Application VirtualBox principale |
+| `virtualbox-dkms` | Compile les modules noyau VirtualBox automatiquement via DKMS |
+| `linux-headers-$(uname -r)` | En-têtes du noyau actuel, requis par DKMS pour compiler les modules |
+
+**Ajouter votre utilisateur au groupe `vboxusers`** :
+
+```bash
+sudo usermod -aG vboxusers $USER
+```
+
+> Ce groupe est requis pour accéder aux périphériques USB et aux interfaces réseau VirtualBox sans `sudo`. Le changement de groupe ne prend effet qu'après déconnexion ou redémarrage.
+
+**Vérifier la version installée** :
+
+```bash
+vboxmanage --version
+```
+
+**Résultat attendu** : `7.2.X_Ubuntur...`
+
+---
+
+### 0.3 Redémarrer la machine
+
+> **Le redémarrage est obligatoire** pour deux raisons :
+> 1. Les modules noyau VirtualBox (`vboxdrv`, `vboxnetflt`, `vboxnetadp`) doivent être chargés par le noyau au démarrage après compilation par DKMS.
+> 2. L'appartenance au groupe `vboxusers` n'est prise en compte que dans une nouvelle session système.
+
+```bash
+sudo reboot
+```
+
+**Après le redémarrage, vérifier que les modules sont chargés** :
+
+```bash
+lsmod | grep vbox
+```
+
+**Résultat attendu** :
+
+```text
+vboxnetadp
+vboxnetflt
+vboxdrv
+```
+
+Si aucun module n'apparaît, relancez manuellement le service :
+
+```bash
+sudo modprobe vboxdrv
+```
+
+---
+
+### 0.4 Installer Vagrant
+
+HashiCorp (éditeur de Vagrant) ne publie pas encore de paquets natifs pour Ubuntu 26.04 (`resolute`) à la date de ce TP. On utilise leur dépôt avec la suite `noble` (Ubuntu 24.04), dont les paquets sont pleinement compatibles avec Ubuntu 26.04.
+
+> **Source** : [developer.hashicorp.com — Install Vagrant](https://developer.hashicorp.com/vagrant/install), [github.com/hashicorp/vagrant — Issue #13811](https://github.com/hashicorp/vagrant/issues/13811)
+
+**Importer la clé GPG HashiCorp** :
+
+```bash
+wget -O- https://apt.releases.hashicorp.com/gpg | \
+  sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+```
+
+**Ajouter le dépôt HashiCorp** :
+
+```bash
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
+  https://apt.releases.hashicorp.com noble main" | \
+  sudo tee /etc/apt/sources.list.d/hashicorp.list
+```
+
+> On spécifie `noble` (Ubuntu 24.04) explicitement à la place de `resolute` (Ubuntu 26.04) car HashiCorp ne publie pas encore de paquets pour cette version. Les paquets `noble` sont compatibles.
+
+**Installer Vagrant** :
+
+```bash
+sudo apt update
+sudo apt install -y vagrant
+```
+
+**Vérifier** :
+
+```bash
+vagrant --version
+```
+
+**Résultat attendu** : `Vagrant 2.4.X`
+
+---
+
+### 0.5 Vérifier l'installation complète
+
+```bash
+# VirtualBox : interface graphique et CLI
+vboxmanage --version
+virtualbox --help 2>&1 | head -1
+
+# Vagrant
+vagrant --version
+
+# Groupe vboxusers : votre utilisateur doit apparaître
+groups $USER | grep vboxusers
+```
+
+**Résultat attendu pour le groupe** :
+
+```text
+PRENOM : PRENOM adm cdrom sudo dip plugdev vboxusers lpadmin
+```
+
+> Si `vboxusers` n'apparaît pas malgré le redémarrage, relancez `sudo usermod -aG vboxusers $USER` et redémarrez à nouveau.
 
 ---
 
@@ -379,6 +534,7 @@ sudo apt install -y \
   php-mbstring \
   php-bcmath \
   php-gmp \
+  php-bz2 \
   php-apcu \
   php-imagick
 ```
@@ -398,7 +554,7 @@ PHP_VER=$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')
 echo "Version PHP détectée : $PHP_VER"
 ```
 
-**Résultat attendu** : PHP 8.3.x sur Debian 13 (Trixie)
+**Résultat attendu** : PHP 8.4.x sur Debian 13 (Trixie) — Debian 13 livre PHP 8.4 comme version par défaut ([source : packages.debian.org](https://packages.debian.org/trixie/php))
 
 > **Note** : `PHP_VER` est une variable de session shell. Elle devra être redéfinie si vous ouvrez un nouveau terminal ou une nouvelle connexion SSH.
 

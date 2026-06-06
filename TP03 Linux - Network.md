@@ -263,6 +263,16 @@ Remplacez :
 - `192.168.1.1` par votre passerelle ;
 - les DNS par ceux fournis par le formateur.
 
+> **Note Ubuntu Desktop** : Sur Ubuntu Desktop, le réseau est géré par NetworkManager. Ajoutez la ligne `renderer: NetworkManager` dans le bloc `network:`, sinon Netplan tentera d'utiliser `systemd-networkd` qui n'est pas actif sur Desktop et la configuration ne s'appliquera pas :
+> ```yaml
+> network:
+>   version: 2
+>   renderer: NetworkManager
+>   ethernets:
+>     INTERFACE:
+>       ...
+> ```
+
 ---
 
 ### 3.4 Vérifier et appliquer la configuration
@@ -370,6 +380,11 @@ nameserver X.X.X.X
 
 Un `nameserver` est un serveur DNS utilisé par la machine.
 
+> **Note Ubuntu Desktop** : Sur Ubuntu Desktop, `/etc/resolv.conf` est géré par `systemd-resolved`. Vous verrez `nameserver 127.0.0.53` (résolveur local) au lieu des vrais serveurs DNS. C'est normal. Pour voir les serveurs DNS réels utilisés par la machine, tapez :
+> ```bash
+> resolvectl status
+> ```
+
 ---
 
 ### 5.2 Tester DNS avec `dig` et `host`
@@ -413,6 +428,8 @@ ping -c 1 serveur-test.local
 - `/etc/hosts` est local à la machine ;
 - il peut résoudre un nom sans interroger DNS ;
 - DNS est externe et permet de résoudre des noms à grande échelle.
+
+> **Note** : `getent hosts` doit retourner `10.10.10.10 serveur-test.local`, ce qui prouve que la résolution via `/etc/hosts` fonctionne. En revanche, `ping` affichera `Destination Host Unreachable` car l'adresse `10.10.10.10` n'existe pas sur votre réseau. C'est attendu : l'objectif est de vérifier la résolution du nom, pas la connectivité.
 
 **Nettoyage** :
 
@@ -601,6 +618,15 @@ printf 'nameserver 203.0.113.254\n' | sudo tee /etc/resolv.conf
 ```
 
 `203.0.113.254` est une adresse de documentation qui ne doit pas être utilisée comme DNS réel.
+
+> **Note Ubuntu Desktop** : Sur Ubuntu Desktop, `/etc/resolv.conf` est un lien symbolique géré par `systemd-resolved`. L'injection ci-dessus peut être écrasée automatiquement par le système. Si la panne ne se maintient pas, utilisez à la place :
+> ```bash
+> sudo resolvectl dns INTERFACE 203.0.113.254
+> ```
+> Et pour rétablir après le diagnostic :
+> ```bash
+> sudo resolvectl revert INTERFACE
+> ```
 
 ---
 

@@ -53,9 +53,9 @@ ls -lh                # Taille en format lisible (Ko, Mo, etc.)
 
 **Exemple de résultat** :
 ```
-drwxr-xr-x   3 user  group   96B 6 juin 10:30 Documents
+drwxr-xr-x   3 user  group    96 6 juin 10:30 Documents
 -rw-r--r--   1 user  group  2.1K 6 juin 10:15 notes.txt
--rw-r--r--   1 user  group   512B 6 juin 10:00 projet.md
+-rw-r--r--   1 user  group   512 6 juin 10:00 projet.md
 ```
 
 **Explication** :
@@ -423,6 +423,7 @@ cp config.txt ../donnees/
 mv main.txt principal.txt
 mv principal.txt ../resultats/
 rm main_backup.txt
+cd ~/Mon_Projet
 echo "=== sources ===" && ls sources
 echo "=== donnees ===" && ls donnees
 echo "=== resultats ===" && ls resultats
@@ -504,7 +505,7 @@ chmod 755 donnees
 ls -l sources/config.txt
 ls -ld donnees
 # Essayer d'éditer
-nano sources/config.txt    # Ctrl+C pour quitter
+nano sources/config.txt    # Ctrl+X pour quitter
 chmod 444 sources/config.txt
 nano sources/config.txt    # Tentative (error)
 chmod 644 sources/config.txt  # Retrouver les droits
